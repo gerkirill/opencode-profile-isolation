@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+
+# Launches OpenCode in an isolated, named profile environment.
+#
+# Usage: opencode-profile.sh <profile-name> [opencode args...]
+#
+# Each profile is a self-contained directory under ~/opencode-profiles/<name>
+# with its own HOME, XDG dirs, and config — keeping profiles fully separate
+# from each other and from the host system.
+#
+# Features:
+#   - Prompts for confirmation before creating a new profile directory
+#   - Loads <profile>/.env into the OpenCode process if present,
+#     without leaking variables into the current shell session
+#   - Disables OpenCode external skills (OPENCODE_DISABLE_EXTERNAL_SKILLS=1)
+#   - Passes all arguments after the profile name through to the OpenCode CLI
+#
+# Profile data persists across runs; nothing is cleaned up on exit.
+# Reference: https://gist.github.com/gerkirill/0e2a85e1b4c8f672840d46077b60f2d1/
+
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $(basename "$0") <profile-name> [opencode args...]" >&2
+  exit 1
+fi
+
+profile="$1"
+shift
+
+root="$HOME/opencode-profiles/$profile"
+
+if [[ ! -d "$root" ]]; then
+  read -r -p "Profile '$profile' does not exist. Create it? [y/N] " answer
+  case "$answer" in
+    [yY][eE][sS]|[yY]) ;;
+    *)
+      echo "Aborted." >&2
+      exit 0
+      ;;
+  esac
+fi
+
+mkdir -p "$root"
+
+# Run in a subshell to avoid polluting the current session with .env vars
+(
+  if [[ -f "$root/.env" ]]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "$root/.env"
+    set +a
+  fi
+
+  export HOME="$root"
+  export OPENCODE_DISABLE_EXTERNAL_SKILLS=1
+  export XDG_CONFIG_HOME="$root/.config"
+  export XDG_DATA_HOME="$root/.local/share"
+  export XDG_STATE_HOME="$root/.local/state"
+  export XDG_CACHE_HOME="$root/.cache"
+
+  # Serialize get/allocate/set so concurrent launches of this profile cannot
+  # choose and persist different ports.
+  exec 9>"$root/.service-port.lock"
+  flock 9
+  if ! service_port=$(opencode service get port 2>/dev/null) || [[ -z "$service_port" ]]; then
+    service_port=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
+    opencode service set port "$service_port"
+  fi
+  flock -u 9
+  exec 9>&-
+
+  exec opencode "$@"
+)
