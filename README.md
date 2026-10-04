@@ -2,6 +2,24 @@
 
 A small wrapper script for launching [OpenCode](https://opencode.ai/) in isolated, named profile environments.
 
+## Why?
+
+OpenCode already has project config, which is great when a setup belongs to one repo. But sometimes the setup belongs to a *type* of work instead.
+
+I wanted a heavy profile for serious/big projects, with things like `oh-my-opencode`, extra MCP servers, custom config, and whatever else. But dragging that into every small hobby repo felt like overkill, and editing the same config back and forth did not sound fun.
+
+It is also handy for plugin development: spin up a clean profile, test things in isolation, break stuff freely, then throw the profile away if needed.
+
+So this script gives me simple named OpenCode profiles:
+
+```bash
+op work .
+op hobby .
+op throwaway .
+```
+
+Each profile gets its own config, cache, state, data, and optional `.env`, while still letting the actual project stay clean.
+
 ## What it does
 
 `op` creates and runs OpenCode with a separate profile directory under:
