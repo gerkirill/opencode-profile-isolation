@@ -10,6 +10,7 @@
 #
 # Features:
 #   - Prompts for confirmation before creating a new profile directory
+#   - Gives new profiles global instructions for profile-aware customization
 #   - Loads <profile>/.env into the OpenCode process if present,
 #     without leaking variables into the current shell session
 #   - Disables OpenCode external skills (OPENCODE_DISABLE_EXTERNAL_SKILLS=1)
@@ -29,11 +30,12 @@ profile="$1"
 shift
 
 root="$HOME/opencode-profiles/$profile"
+new_profile=0
 
 if [[ ! -d "$root" ]]; then
   read -r -p "Profile '$profile' does not exist. Create it? [y/N] " answer
   case "$answer" in
-    [yY][eE][sS]|[yY]) ;;
+    [yY][eE][sS]|[yY]) new_profile=1 ;;
     *)
       echo "Aborted." >&2
       exit 0
@@ -42,6 +44,47 @@ if [[ ! -d "$root" ]]; then
 fi
 
 mkdir -p "$root"
+
+if (( new_profile )); then
+  config_dir="$root/.config/opencode"
+  agents_file="$config_dir/AGENTS.md"
+  mkdir -p "$config_dir"
+
+  if [[ ! -e "$agents_file" ]]; then
+    cat >"$agents_file" <<'EOF'
+# Isolated OpenCode profile
+
+This OpenCode instance runs in an isolated profile. Its `$HOME` and XDG
+directories belong to this profile, not to the host user's normal OpenCode
+installation.
+
+When the user asks to install, configure, or modify OpenCode itself, use
+profile-global scope unless they explicitly request project-local setup. If the
+scope is genuinely ambiguous, ask before changing files. Do not write
+profile-level customization into the current project or substitute literal host
+paths for the active `$HOME` and XDG paths.
+
+Use these profile-global locations:
+
+- OpenCode configuration—including providers, models, MCP servers,
+  permissions, policies, references, formatters, and LSP settings—belongs in
+  `$XDG_CONFIG_HOME/opencode/opencode.json` or `opencode.jsonc`.
+- Terminal settings, themes, keybindings, and terminal plugins belong in
+  `$XDG_CONFIG_HOME/opencode/cli.json`.
+- Install package plugins/extensions with `opencode plugin ...` in the current
+  environment.
+- File-based plugins belong in `$XDG_CONFIG_HOME/opencode/plugins/`.
+- Skills belong in `$XDG_CONFIG_HOME/opencode/skills/`.
+- Agents belong in `$XDG_CONFIG_HOME/opencode/agents/`.
+- Commands belong in `$XDG_CONFIG_HOME/opencode/commands/`.
+- Global model instructions belong in
+  `$XDG_CONFIG_HOME/opencode/AGENTS.md` (this file).
+
+Preserve unrelated settings and user-authored content when changing existing
+configuration files.
+EOF
+  fi
+fi
 
 # Run in a subshell to avoid polluting the current session with .env vars
 (

@@ -33,11 +33,31 @@ Each profile gets its own `HOME` and XDG directories, so OpenCode config, cache,
 ## Features
 
 - Prompts before creating a new profile directory.
+- Keeps OpenCode-installed plugins, skills, and other customizations inside new profiles.
 - Loads `~/opencode-profiles/<profile-name>/.env` into the OpenCode process if present.
 - Keeps `.env` variables scoped to the launched process.
 - Disables OpenCode external skills with `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`.
 - Persists OpenCode service port per profile and protects concurrent launches with a lock.
 - Passes all arguments after the profile name through to `opencode`.
+
+## Installing OpenCode customizations inside a profile
+
+When `op` creates a profile, it also creates:
+
+```text
+~/opencode-profiles/<profile-name>/.config/opencode/AGENTS.md
+```
+
+These starter instructions apply when you ask OpenCode running inside an
+isolated profile to install or configure something for itself — for example, a
+plugin, skill, agent, command, MCP server, provider, model, theme, or keybinding.
+They tell the agent to put that profile-global customization inside the active
+isolated profile rather than the host's normal OpenCode directories.
+
+The file is only created with a new profile. After that it is entirely yours:
+`op` never rewrites or restores it, so you can edit or remove the instructions.
+Existing profiles are not changed; copy the starter guidance from the `op`
+script into their `.config/opencode/AGENTS.md` if you want the same behavior.
 
 ## Usage
 
